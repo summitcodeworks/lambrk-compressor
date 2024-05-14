@@ -1,5 +1,7 @@
 # Lambrk Compressor
 
+![Dolby Vision and Dolby Atmos](https://static1.xdaimages.com/wordpress/wp-content/uploads/2021/06/Dolby-Vision-Dolby-Atmos-logo-on-gray-background.jpg)
+
 ## Description
 
 Lambrk Compressor is a video compression tool designed to support 4K Dolby Vision, HDR, and Dolby Atmos. It enables compressing videos up to 4K quality, with support for both landscape and portrait orientations.
