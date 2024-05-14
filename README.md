@@ -22,5 +22,5 @@ Lambrk Compressor is a video compression tool designed to support 4K Dolby Visio
 2. **Clone Repository**
 
    ```bash
-   git clone https://github.com/your-username/lambrk-compressor.git
+   git clone https://github.com/debarunlahiri/lambrk-compressor.git
    cd lambrk-compressor
