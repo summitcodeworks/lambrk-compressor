@@ -1,6 +1,12 @@
 import os
 import json
 import random
+import tkinter as tk
+from tkinter import filedialog, scrolledtext
+import subprocess
+
+input_directory = ""
+output_base_directory = ""
 
 def get_video_info(input_file):
     """Extracts video information using ffprobe."""
@@ -121,59 +127,136 @@ def compress_videos(input_dir, output_base_dir, landscape_qualities, portrait_qu
                 compress_video(input_path, output_dir, bitrate, resolution, hdr_metadata=hdr, dolby_atmos=dolby_atmos)
             
             
-            
+class LambrkCompressorGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Lambrk Compressor")
+        
+         # Input folder selection
+        self.input_folder_label = tk.Label(root, text="Input Folder:")
+        self.input_folder_label.pack()
+        self.input_folder_button = tk.Button(root, text="Browse", command=self.select_input_folder)
+        self.input_folder_button.pack()
+        self.input_folder_path = tk.Entry(root, width=50)
+        self.input_folder_path.pack()
+        self.input_folder_display = tk.Label(root, text="", fg="blue")
+        self.input_folder_display.pack()
+        
+        # Output folder selection
+        self.output_folder_label = tk.Label(root, text="Output Folder:")
+        self.output_folder_label.pack()
+        self.output_folder_button = tk.Button(root, text="Browse", command=self.select_output_folder)
+        self.output_folder_button.pack()
+        self.output_folder_path = tk.Entry(root, width=50)
+        self.output_folder_path.pack()
+        self.output_folder_display = tk.Label(root, text="", fg="blue")
+        self.output_folder_display.pack()
+        
+        # Compression button
+        self.compress_button = tk.Button(root, text="Compress Videos", command=self.compress_videos)
+        self.compress_button.pack()
+        
+        # Log display
+        self.log_text = scrolledtext.ScrolledText(root, width=60, height=20)
+        self.log_text.pack()
+    
+    def select_input_folder(self):
+        folder_selected = filedialog.askdirectory()
+        self.input_folder_path.delete(0, tk.END)
+        self.input_folder_path.insert(0, folder_selected)
+        self.input_folder_display.config(text=folder_selected)
+    
+    def select_output_folder(self):
+        folder_selected = filedialog.askdirectory()
+        self.output_folder_path.delete(0, tk.END)
+        self.output_folder_path.insert(0, folder_selected)
+        self.output_folder_display.config(text=folder_selected)
+    
+    def compress_videos(self):
+        input_folder = self.input_folder_path.get()
+        output_folder = self.output_folder_path.get()
+        
+        # List of video qualities (bitrate, resolution, HDR metadata)
+        landscape_qualities = [
+            ("150k", "256x144", {}),
+            ("200k", "426x240", {}),
+            ("300k", "640x360", {}),
+            ("500k", "854x480", {}),
+            ("1000k", "1280x720", {}),
+            ("2000k", "1920x1080", {}),
+            ("4000k", "2560x1440", {}),
+            ("6000k", "3840x2160", {
+                "color_primaries": "bt2020",
+                "transfer_characteristics": "smpte2084",
+                "mastering_display_color_primaries": "bt2020",
+                "mastering_display_luminance": "1000"
+            }),
+            # Add higher quality settings cautiously
+            # ("8000k", "7680x4320", {
+            #     "color_primaries": "bt2020",
+            #     "transfer_characteristics": "smpte2084",
+            #     "mastering_display_color_primaries": "bt2020",
+            #     "mastering_display_luminance": "1000"
+            # })
+        ]
+        
+        portrait_qualities = [
+            ("150k", "256x144", {}),
+            ("200k", "426x240", {}),
+            ("300k", "640x360", {}),
+            ("500k", "854x480", {}),
+            ("1000k", "1280x720", {}),
+            ("2000k", "1920x1080", {}),
+            ("4000k", "2560x1440", {}),
+            ("6000k", "3840x2160", {
+                "color_primaries": "bt2020",
+                "transfer_characteristics": "smpte2084",
+                "mastering_display_color_primaries": "bt2020",
+                "mastering_display_luminance": "1000"
+            }),
+            # Add higher quality settings cautiously
+            # ("8000k", "7680x4320", {
+            #     "color_primaries": "bt2020",
+            #     "transfer_characteristics": "smpte2084",
+            #     "mastering_display_color_primaries": "bt2020",
+            #     "mastering_display_luminance": "1000"
+            # })
+        ]
+
+        # Compress videos in the input directory using specified qualities with Dolby Atmos audio support
+        
+        if not input_folder or not output_folder:
+            self.log_text.insert(tk.END, "Please select both input and output folders.\n")
+            return
+        
+        self.log_text.insert(tk.END, f"Compressing videos from {input_folder} to {output_folder}\n")
+        
+        compress_videos(input_folder, output_folder, landscape_qualities, portrait_qualities, dolby_atmos=True)
+        
+        
+        if not input_folder or not output_folder:
+            self.log_text.insert(tk.END, "Please select both input and output folders.\n")
+            return
+        
+        self.log_text.insert(tk.END, f"Compressing videos from {input_folder} to {output_folder}\n")
+        
+        # for root, dirs, files in os.walk(input_folder):
+        #     for file in files:
+        #         if file.endswith((".mp4", ".mkv", ".mov")):
+        #             input_path = os.path.join(root, file)
+        #             output_path = os.path.join(output_folder, file)
+                    # self.compress_video(input_path, output_path)
+                    
         
 
 if __name__ == "__main__":
-    input_directory = "lambrk_videos/pending/"
-    output_base_directory = "lambrk_videos/final/"
-
-    # List of video qualities (bitrate, resolution, HDR metadata)
-    landscape_qualities = [
-        ("150k", "256x144", {}),
-        ("200k", "426x240", {}),
-        ("300k", "640x360", {}),
-        ("500k", "854x480", {}),
-        ("1000k", "1280x720", {}),
-        ("2000k", "1920x1080", {}),
-        ("4000k", "2560x1440", {}),
-        ("6000k", "3840x2160", {
-            "color_primaries": "bt2020",
-            "transfer_characteristics": "smpte2084",
-            "mastering_display_color_primaries": "bt2020",
-            "mastering_display_luminance": "1000"
-        }),
-        # Add higher quality settings cautiously
-        # ("8000k", "7680x4320", {
-        #     "color_primaries": "bt2020",
-        #     "transfer_characteristics": "smpte2084",
-        #     "mastering_display_color_primaries": "bt2020",
-        #     "mastering_display_luminance": "1000"
-        # })
-    ]
+    root = tk.Tk()
+    app = LambrkCompressorGUI(root)
+    root.mainloop()
     
-    portrait_qualities = [
-        ("150k", "256x144", {}),
-        ("200k", "426x240", {}),
-        ("300k", "640x360", {}),
-        ("500k", "854x480", {}),
-        ("1000k", "1280x720", {}),
-        ("2000k", "1920x1080", {}),
-        ("4000k", "2560x1440", {}),
-        ("6000k", "3840x2160", {
-            "color_primaries": "bt2020",
-            "transfer_characteristics": "smpte2084",
-            "mastering_display_color_primaries": "bt2020",
-            "mastering_display_luminance": "1000"
-        }),
-        # Add higher quality settings cautiously
-        # ("8000k", "7680x4320", {
-        #     "color_primaries": "bt2020",
-        #     "transfer_characteristics": "smpte2084",
-        #     "mastering_display_color_primaries": "bt2020",
-        #     "mastering_display_luminance": "1000"
-        # })
-    ]
 
-    # Compress videos in the input directory using specified qualities with Dolby Atmos audio support
-    compress_videos(input_directory, output_base_directory, landscape_qualities, portrait_qualities, dolby_atmos=True)
+    
+    
+    
+    
+
