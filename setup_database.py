@@ -1,118 +1,96 @@
 #!/usr/bin/env python
 """
 Database Setup Script for Lambrk Video Compressor
-This script helps set up the PostgreSQL database and tables
+Simple unified setup using the consolidated DatabaseManager
 """
-import os
 import sys
-from sqlalchemy import create_engine, text
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from database_models import DatabaseManager, initialize_database
 
-def create_database_if_not_exists(database_url, database_name):
-    """Create the database if it doesn't exist"""
-    try:
-        # Connect to PostgreSQL server (not specific database)
-        postgres_url = database_url.replace(f"/{database_name}", "/postgres")
-        engine = create_engine(postgres_url)
-        
-        with engine.connect() as conn:
-            # Check if database exists
-            result = conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{database_name}'"))
-            if not result.fetchone():
-                # Create database
-                conn.execute(text("COMMIT"))  # End any existing transaction
-                conn.execute(text(f"CREATE DATABASE {database_name}"))
-                print(f"✅ Database '{database_name}' created successfully!")
-            else:
-                print(f"✅ Database '{database_name}' already exists")
-        
-        engine.dispose()
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error creating database: {e}")
-        return False
-
-def setup_database():
-    """Set up the complete database with tables"""
-    print("🚀 Starting Lambrk Video Compressor Database Setup")
+def interactive_setup():
+    """Interactive database setup with user input"""
+    print("🚀 Lambrk Video Compressor - Database Setup")
     print("=" * 50)
     
-    # Get database configuration
-    database_host = input("Enter PostgreSQL host (default: localhost): ").strip() or "localhost"
-    database_port = input("Enter PostgreSQL port (default: 5432): ").strip() or "5432"
-    database_user = input("Enter PostgreSQL username (default: postgres): ").strip() or "postgres"
-    database_password = input("Enter PostgreSQL password: ").strip()
-    database_name = input("Enter database name (default: lambrk_compressor): ").strip() or "lambrk_compressor"
+    # Get database configuration from user
+    print("\n📝 Enter your PostgreSQL connection details:")
+    host = input("Host (default: localhost): ").strip() or "localhost"
+    port = input("Port (default: 5432): ").strip() or "5432"
+    user = input("Username (default: postgres): ").strip() or "postgres"
+    password = input("Password: ").strip() or "password"
+    database = input("Database name (default: lambrk_compressor): ").strip() or "lambrk_compressor"
     
-    # Construct database URL
-    database_url = f"postgresql://{database_user}:{database_password}@{database_host}:{database_port}/{database_name}"
-    
-    print(f"\n📝 Database URL: postgresql://{database_user}:***@{database_host}:{database_port}/{database_name}")
-    
-    # Test connection to PostgreSQL server
-    print("\n🔌 Testing PostgreSQL connection...")
+    # Create database manager with user inputs
     try:
-        postgres_url = f"postgresql://{database_user}:{database_password}@{database_host}:{database_port}/postgres"
-        test_engine = create_engine(postgres_url)
-        with test_engine.connect():
-            print("✅ PostgreSQL connection successful!")
-        test_engine.dispose()
-    except Exception as e:
-        print(f"❌ Failed to connect to PostgreSQL: {e}")
-        print("Please check your PostgreSQL installation and credentials.")
-        return False
-    
-    # Create database if it doesn't exist
-    print(f"\n🗃️ Creating database '{database_name}' if needed...")
-    if not create_database_if_not_exists(database_url, database_name):
-        return False
-    
-    # Create tables using our models
-    print("\n📋 Creating database tables...")
-    try:
-        from database_models import DatabaseManager
+        db_manager = DatabaseManager(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=database
+        )
         
-        db_manager = DatabaseManager(database_url)
-        if db_manager.init_database():
-            print("✅ Database tables created successfully!")
+        # Display connection info
+        conn_info = db_manager.get_connection_info()
+        print(f"\n📝 Connection: {conn_info['url_masked']}")
+        
+        # Initialize everything
+        print("\n🔧 Setting up database...")
+        if db_manager.initialize():
+            # Create .env file
+            db_manager.create_env_file()
+            
+            # Test with CRUD operations
+            print("\n🧪 Testing database operations...")
+            if test_crud_operations(db_manager):
+                print("\n" + "=" * 50)
+                print("🎉 Database setup completed successfully!")
+                print("\nNext steps:")
+                print("1. Run: python video_compression.py")
+                print("2. The application will automatically use your database")
+                print("3. Use 'View Jobs History' to see all compression jobs")
+                return True
+            else:
+                print("❌ Database operations test failed")
+                return False
         else:
-            print("❌ Failed to create database tables")
+            print("❌ Database setup failed")
             return False
             
     except Exception as e:
-        print(f"❌ Error creating tables: {e}")
+        print(f"❌ Setup failed: {e}")
         return False
-    
-    # Create environment configuration
-    print("\n⚙️ Creating environment configuration...")
-    env_content = f"""# Lambrk Video Compressor Database Configuration
-DATABASE_URL=postgresql://{database_user}:{database_password}@{database_host}:{database_port}/{database_name}
 
-# Alternative format for connection components
-DB_HOST={database_host}
-DB_PORT={database_port}
-DB_USER={database_user}
-DB_PASSWORD={database_password}
-DB_NAME={database_name}
-"""
+def quick_setup():
+    """Quick setup with default settings"""
+    print("🚀 Quick Database Setup (using defaults)")
+    print("=" * 40)
     
     try:
-        with open('.env', 'w') as f:
-            f.write(env_content)
-        print("✅ Environment file (.env) created!")
-        print("   You can modify database settings in this file if needed.")
+        # Use default settings
+        if initialize_database():
+            print("✅ Database setup completed with defaults!")
+            print("Default connection: postgresql://postgres:password@localhost:5432/lambrk_compressor")
+            return True
+        else:
+            print("❌ Quick setup failed")
+            return False
     except Exception as e:
-        print(f"⚠️ Warning: Could not create .env file: {e}")
-    
-    # Test the complete setup
-    print("\n🧪 Testing complete database setup...")
+        print(f"❌ Quick setup failed: {e}")
+        return False
+
+def test_crud_operations(db_manager):
+    """Test basic CRUD operations"""
     try:
-        from crud_service import get_crud_service
+        from crud_service import CRUDService
         
-        crud = get_crud_service()
+        # Reset global manager to use our configured one
+        from database_models import reset_db_manager
+        reset_db_manager()
         
-        # Test creating a sample job
+        # Create CRUD service
+        crud = CRUDService()
+        
+        # Test creating a job
         job = crud.jobs.create_job(
             job_name="Database Setup Test",
             input_folder="/test/input",
@@ -121,32 +99,17 @@ DB_NAME={database_name}
         
         if job:
             print("✅ Database CRUD operations working!")
-            
             # Clean up test job
             crud.jobs.delete_job(job.id)
             print("✅ Test data cleaned up")
+            return True
         else:
-            print("❌ Database CRUD test failed")
+            print("❌ Could not create test job")
             return False
             
     except Exception as e:
-        print(f"❌ Database test failed: {e}")
+        print(f"❌ CRUD test failed: {e}")
         return False
-    
-    print("\n" + "=" * 50)
-    print("🎉 Database setup completed successfully!")
-    print("\nNext steps:")
-    print("1. Run: python video_compression.py")
-    print("2. The application will automatically connect to your database")
-    print("3. Use 'View Jobs History' to see all compression jobs")
-    print("\n📊 Database Features Available:")
-    print("• Job tracking and history")
-    print("• Video file management")
-    print("• Task progress monitoring")
-    print("• System resource metrics")
-    print("• Complete CRUD operations")
-    
-    return True
 
 def check_dependencies():
     """Check if required dependencies are installed"""
@@ -155,7 +118,6 @@ def check_dependencies():
     required_packages = [
         ('psycopg2', 'psycopg2-binary'),
         ('sqlalchemy', 'sqlalchemy'),
-        ('alembic', 'alembic')
     ]
     
     missing_packages = []
@@ -178,17 +140,23 @@ def check_dependencies():
 
 def main():
     """Main setup function"""
-    print("🎬 Lambrk Video Compressor - Database Setup")
-    print("This script will help you set up PostgreSQL for video compression tracking")
-    print()
-    
-    # Check dependencies first
     if not check_dependencies():
         print("\n❌ Please install missing dependencies and run this script again.")
         sys.exit(1)
     
-    # Run database setup
-    if setup_database():
+    print("\nChoose setup method:")
+    print("1. Interactive setup (recommended)")
+    print("2. Quick setup with defaults")
+    
+    choice = input("\nEnter choice (1 or 2): ").strip()
+    
+    success = False
+    if choice == "2":
+        success = quick_setup()
+    else:
+        success = interactive_setup()
+    
+    if success:
         print("\n✨ Setup completed! You can now run the video compressor with full database support.")
         sys.exit(0)
     else:

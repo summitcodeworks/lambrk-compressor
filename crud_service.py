@@ -359,7 +359,7 @@ class CRUDService:
     
     def initialize_database(self) -> bool:
         """Initialize the database with all tables"""
-        return self.db_manager.init_database()
+        return self.db_manager.initialize()
     
     def create_compression_batch(self, job_name: str, input_folder: str, output_folder: str,
                                 video_files: List[str], quality_profiles: List[tuple],

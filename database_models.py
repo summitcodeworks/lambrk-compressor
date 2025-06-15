@@ -2,11 +2,14 @@
 Database models for Lambrk Video Compressor
 """
 import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, JSON
+import os
+import sys
+from typing import Optional, Dict, Any
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, JSON, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.sql import func
-import os
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 Base = declarative_base()
 
@@ -129,47 +132,242 @@ class SystemMetrics(Base):
         return f"<SystemMetrics(id={self.id}, cpu={self.cpu_percent}%, memory={self.memory_percent}%)>"
 
 class DatabaseManager:
-    """Database connection and session management"""
+    """
+    Comprehensive Database Manager for Lambrk Video Compressor
+    Handles all database connections, setup, initialization, and configuration in one place
+    """
     
-    def __init__(self, database_url=None):
-        if database_url is None:
-            # Default to local PostgreSQL
-            database_url = os.getenv(
-                'DATABASE_URL', 
-                'postgresql://postgres:password@localhost:5432/lambrk_compressor'
-            )
+    def __init__(self, database_url: Optional[str] = None, 
+                 host: Optional[str] = None, port: Optional[str] = None,
+                 user: Optional[str] = None, password: Optional[str] = None,
+                 database: Optional[str] = None):
+        """
+        Initialize database manager with flexible configuration options
         
-        self.engine = create_engine(database_url, echo=False)
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        
-    def create_tables(self):
-        """Create all database tables"""
-        Base.metadata.create_all(bind=self.engine)
-        
-    def get_session(self):
-        """Get a database session"""
-        return self.SessionLocal()
+        Args:
+            database_url: Complete database URL (takes precedence if provided)
+            host, port, user, password, database: Individual connection parameters
+        """
+        self.database_url = self._build_database_url(database_url, host, port, user, password, database)
+        self.engine = None
+        self.SessionLocal = None
+        self._initialize_engine()
     
-    def init_database(self):
-        """Initialize database with tables"""
+    def _build_database_url(self, database_url: Optional[str] = None,
+                           host: Optional[str] = None, port: Optional[str] = None,
+                           user: Optional[str] = None, password: Optional[str] = None,
+                           database: Optional[str] = None) -> str:
+        """Build database URL from various input methods"""
+        
+        # If complete URL provided, use it
+        if database_url:
+            return database_url
+        
+        # Try to get from environment variables first
+        env_url = os.getenv('DATABASE_URL')
+        if env_url:
+            return env_url
+        
+        # Build from individual parameters or environment variables
+        host = host or os.getenv('DB_HOST', 'localhost')
+        port = port or os.getenv('DB_PORT', '5432')
+        user = user or os.getenv('DB_USER', 'postgres')
+        password = password or os.getenv('DB_PASSWORD', 'password')
+        database = database or os.getenv('DB_NAME', 'lambrk')
+        
+        return f"postgresql://{user}:{password}@{host}:{port}/{database}"
+    
+    def _initialize_engine(self):
+        """Initialize SQLAlchemy engine and session factory"""
         try:
-            self.create_tables()
-            print("Database tables created successfully!")
+            self.engine = create_engine(self.database_url, echo=False)
+            self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        except Exception as e:
+            print(f"❌ Error initializing database engine: {e}")
+            raise
+    
+    def test_connection(self) -> bool:
+        """Test database connection"""
+        try:
+            with self.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
             return True
         except Exception as e:
-            print(f"Error creating database tables: {e}")
+            print(f"❌ Database connection test failed: {e}")
             return False
+    
+    def create_database_if_not_exists(self) -> bool:
+        """Create the database if it doesn't exist (PostgreSQL only)"""
+        try:
+            # Extract database name from URL
+            database_name = self.database_url.split('/')[-1]
+            
+            # Connect to PostgreSQL server (not specific database)
+            postgres_url = self.database_url.replace(f"/{database_name}", "/postgres")
+            postgres_engine = create_engine(postgres_url)
+            
+            with postgres_engine.connect() as conn:
+                # Check if database exists
+                result = conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{database_name}'"))
+                if not result.fetchone():
+                    # Create database
+                    conn.execute(text("COMMIT"))  # End any existing transaction
+                    conn.execute(text(f"CREATE DATABASE {database_name}"))
+                    print(f"✅ Database '{database_name}' created successfully!")
+                else:
+                    print(f"✅ Database '{database_name}' already exists")
+            
+            postgres_engine.dispose()
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error creating database: {e}")
+            return False
+    
+    def create_tables(self) -> bool:
+        """Create all database tables"""
+        try:
+            Base.metadata.create_all(bind=self.engine)
+            print("✅ Database tables created successfully!")
+            return True
+        except Exception as e:
+            print(f"❌ Error creating database tables: {e}")
+            return False
+    
+    def get_session(self):
+        """Get a database session"""
+        if not self.SessionLocal:
+            raise RuntimeError("Database not initialized. Call initialize() first.")
+        return self.SessionLocal()
+    
+    def initialize(self, create_database: bool = True, create_tables: bool = True) -> bool:
+        """
+        Complete database initialization
+        
+        Args:
+            create_database: Whether to create the database if it doesn't exist
+            create_tables: Whether to create tables
+        """
+        try:
+            # Test basic connection to PostgreSQL server
+            if create_database:
+                if not self.create_database_if_not_exists():
+                    return False
+            
+            # Test connection to our specific database
+            if not self.test_connection():
+                print("❌ Failed to connect to database after creation")
+                return False
+            
+            # Create tables
+            if create_tables:
+                if not self.create_tables():
+                    return False
+            
+            print("✅ Database initialization completed successfully!")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Database initialization failed: {e}")
+            return False
+    
+    def create_env_file(self) -> bool:
+        """Create .env file with current database configuration"""
+        try:
+            # Parse URL to get components
+            url_parts = self.database_url.replace('postgresql://', '').split('@')
+            user_pass = url_parts[0].split(':')
+            host_port_db = url_parts[1].split('/')
+            host_port = host_port_db[0].split(':')
+            
+            user = user_pass[0]
+            password = user_pass[1] if len(user_pass) > 1 else ''
+            host = host_port[0]
+            port = host_port[1] if len(host_port) > 1 else '5432'
+            database = host_port_db[1] if len(host_port_db) > 1 else ''
+            
+            env_content = f"""# Lambrk Video Compressor Database Configuration
+DATABASE_URL={self.database_url}
+
+# Alternative format for connection components
+DB_HOST={host}
+DB_PORT={port}
+DB_USER={user}
+DB_PASSWORD={password}
+DB_NAME={database}
+"""
+            
+            with open('.env', 'w') as f:
+                f.write(env_content)
+            print("✅ Environment file (.env) created!")
+            return True
+            
+        except Exception as e:
+            print(f"⚠️ Warning: Could not create .env file: {e}")
+            return False
+    
+    def get_connection_info(self) -> Dict[str, str]:
+        """Get connection information for display"""
+        try:
+            url_parts = self.database_url.replace('postgresql://', '').split('@')
+            user_pass = url_parts[0].split(':')
+            host_port_db = url_parts[1].split('/')
+            host_port = host_port_db[0].split(':')
+            
+            return {
+                'user': user_pass[0],
+                'host': host_port[0],
+                'port': host_port[1] if len(host_port) > 1 else '5432',
+                'database': host_port_db[1] if len(host_port_db) > 1 else '',
+                'url_masked': f"postgresql://{user_pass[0]}:***@{host_port[0]}:{host_port[1] if len(host_port) > 1 else '5432'}/{host_port_db[1] if len(host_port_db) > 1 else ''}"
+            }
+        except:
+            return {'error': 'Could not parse connection info'}
+    
+    def close(self):
+        """Close database connections"""
+        if self.engine:
+            self.engine.dispose()
+    
+    def init_database(self):
+        """Legacy method name for backwards compatibility"""
+        return self.initialize(create_database=True, create_tables=True)
 
 # Global database manager instance
-db_manager = None
+_db_manager: Optional[DatabaseManager] = None
 
-def get_db_manager():
-    """Get the global database manager instance"""
-    global db_manager
-    if db_manager is None:
-        db_manager = DatabaseManager()
-    return db_manager
+def get_db_manager(database_url: Optional[str] = None, **kwargs) -> DatabaseManager:
+    """
+    Get the global database manager instance
+    
+    Args:
+        database_url: Database URL (only used on first call)
+        **kwargs: Additional connection parameters (only used on first call)
+    """
+    global _db_manager
+    if _db_manager is None:
+        _db_manager = DatabaseManager(database_url=database_url, **kwargs)
+    return _db_manager
 
+def initialize_database(database_url: Optional[str] = None, **kwargs) -> bool:
+    """
+    Initialize the database with full setup
+    
+    Args:
+        database_url: Database URL
+        **kwargs: Additional connection parameters
+    """
+    db_manager = get_db_manager(database_url=database_url, **kwargs)
+    return db_manager.initialize()
+
+def reset_db_manager():
+    """Reset the global database manager (useful for testing)"""
+    global _db_manager
+    if _db_manager:
+        _db_manager.close()
+    _db_manager = None
+
+# Backwards compatibility functions
 def init_database():
-    """Initialize the database"""
-    return get_db_manager().init_database() 
+    """Legacy function for backwards compatibility"""
+    return initialize_database() 
