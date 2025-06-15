@@ -1,0 +1,29 @@
+# Core dependencies for Lambrk Video Compressor with PostgreSQL CRUD integration
+
+# System resource monitoring
+psutil>=5.8.0
+
+# PostgreSQL database connectivity
+psycopg2-binary>=2.9.0
+
+# ORM and database operations
+sqlalchemy>=2.0.0
+
+# Database migrations (optional, for future use)
+alembic>=1.8.0
+
+# Additional utilities that might be needed
+typing-extensions>=4.6.0
+
+# For potential future enhancements
+python-dotenv>=0.19.0  # For .env file support
+
+# Development and testing dependencies (optional)
+# Uncomment if you want to include development tools
+# pytest>=6.0.0
+# pytest-cov>=2.10.0
+# black>=21.0.0
+# flake8>=3.8.0
+
+# Note: tkinter is included with Python standard library
+# Note: concurrent.futures, threading, multiprocessing are built-in modules 
