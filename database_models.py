@@ -225,10 +225,44 @@ class DatabaseManager:
             return False
     
     def create_tables(self) -> bool:
-        """Create all database tables"""
+        """Create all database tables if they don't exist"""
         try:
+            # Check which tables already exist
+            existing_tables = set()
+            with self.engine.connect() as conn:
+                try:
+                    # Get list of existing tables
+                    result = conn.execute(text("""
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public'
+                    """))
+                    existing_tables = {row[0] for row in result}
+                except Exception as e:
+                    print(f"⚠️ Could not query existing tables: {e}")
+            
+            # Get all table names that should exist
+            expected_tables = {table.name for table in Base.metadata.tables.values()}
+            
+            # Determine which tables need to be created
+            tables_to_create = expected_tables - existing_tables
+            
+            if existing_tables & expected_tables:
+                print(f"✅ Found existing tables: {', '.join(existing_tables & expected_tables)}")
+            
+            if tables_to_create:
+                print(f"🔄 Creating new tables: {', '.join(tables_to_create)}")
+            else:
+                print("✅ All required tables already exist")
+            
+            # Create all tables (SQLAlchemy's create_all only creates missing tables)
             Base.metadata.create_all(bind=self.engine)
-            print("✅ Database tables created successfully!")
+            
+            if tables_to_create:
+                print("✅ New database tables created successfully!")
+            else:
+                print("✅ Database tables verification completed!")
+            
             return True
         except Exception as e:
             print(f"❌ Error creating database tables: {e}")

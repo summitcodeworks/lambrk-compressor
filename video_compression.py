@@ -441,7 +441,7 @@ def compress_videos_concurrent(input_dir, output_base_dir, landscape_qualities, 
     """Optimized concurrent video compression with intelligent task scheduling."""
     print(f"Compressing videos in input directory: {input_dir}")
 
-    input_files = [f for f in os.listdir(input_dir) if f.endswith(('.mp4', '.MOV', '.mov', '.avi', '.mkv'))]
+    input_files = [f for f in os.listdir(input_dir) if f.endswith(('.mp4', '.MOV', '.mov', '.avi', '.mkv')) and not f.startswith('._')]
 
     if not input_files:
         print("No videos to compress")
@@ -776,7 +776,7 @@ class LambrkCompressorGUI:
                 port="5432", 
                 user="debarunlahiri",
                 password="password",
-                database="lambrk"
+                database="postgres"
             )
             
             # Display connection info
@@ -948,7 +948,7 @@ class LambrkCompressorGUI:
             return
         
         # Check for video files
-        video_files = [f for f in os.listdir(input_folder) if f.endswith(('.mp4', '.MOV', '.mov', '.avi', '.mkv'))]
+        video_files = [f for f in os.listdir(input_folder) if f.endswith(('.mp4', '.MOV', '.mov', '.avi', '.mkv')) and not f.startswith('._')]
         if not video_files:
             self.log_message("No video files found in the input folder!")
             return
