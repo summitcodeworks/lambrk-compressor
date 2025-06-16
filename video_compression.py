@@ -675,7 +675,9 @@ class LambrkCompressorGUI:
         # Input folder selection
         self.input_folder_label = tk.Label(root, text="Input Folder:")
         self.input_folder_label.pack(pady=5)
-        self.input_folder_button = tk.Button(root, text="Browse", command=self.select_input_folder)
+        self.input_folder_button = tk.Button(root, text="Browse", command=self.select_input_folder, width=15, height=2,
+                                            bg="#E0E0E0", fg="black", activebackground="#D0D0D0", activeforeground="black",
+                                            relief="raised", bd=2)
         self.input_folder_button.pack()
         self.input_folder_path = tk.Entry(root, width=60)
         self.input_folder_path.pack(pady=5)
@@ -685,7 +687,9 @@ class LambrkCompressorGUI:
         # Output folder selection
         self.output_folder_label = tk.Label(root, text="Output Folder:")
         self.output_folder_label.pack(pady=5)
-        self.output_folder_button = tk.Button(root, text="Browse", command=self.select_output_folder)
+        self.output_folder_button = tk.Button(root, text="Browse", command=self.select_output_folder, width=15, height=2,
+                                            bg="#E0E0E0", fg="black", activebackground="#D0D0D0", activeforeground="black",
+                                            relief="raised", bd=2)
         self.output_folder_button.pack()
         self.output_folder_path = tk.Entry(root, width=60)
         self.output_folder_path.pack(pady=5)
@@ -732,7 +736,9 @@ class LambrkCompressorGUI:
             self.job_name_entry.insert(0, f"Job_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
             
             self.view_jobs_button = tk.Button(self.db_frame, text="View Jobs History", 
-                                            command=self.show_jobs_history, bg="blue", fg="white")
+                                            command=self.show_jobs_history, bg="#0066CC", fg="white", 
+                                            activebackground="#004499", activeforeground="white",
+                                            width=18, height=2, relief="raised", bd=2)
             self.view_jobs_button.pack(side='right', padx=5)
             
             self.db_status_label = tk.Label(self.db_frame, text="Database: Connected", fg="green")
@@ -744,13 +750,16 @@ class LambrkCompressorGUI:
         
         compress_text = "Start Database-Tracked Compression" if self.database_enabled else "Start Concurrent Compression"
         self.compress_button = tk.Button(self.button_frame, text=compress_text, 
-                                       command=self.compress_videos, bg="green", fg="white", 
-                                       font=("Arial", 12, "bold"))
+                                       command=self.compress_videos, bg="#228B22", fg="white", 
+                                       activebackground="#006400", activeforeground="white",
+                                       font=("Arial", 10, "bold"), width=30, height=2, wraplength=250,
+                                       relief="raised", bd=2)
         self.compress_button.pack(side='left', padx=5)
         
         self.stop_button = tk.Button(self.button_frame, text="Stop", 
-                                   command=self.stop_compression, bg="red", fg="white",
-                                   state='disabled')
+                                   command=self.stop_compression, bg="#DC143C", fg="white",
+                                   activebackground="#B22222", activeforeground="white",
+                                   state='disabled', width=10, height=2, relief="raised", bd=2)
         self.stop_button.pack(side='left', padx=5)
         
         # Progress bar
@@ -1200,8 +1209,12 @@ class LambrkCompressorGUI:
                     )
                     tree.insert('', 'end', values=values)
             
-            tk.Button(buttons_frame, text="Refresh", command=refresh_jobs).pack(side='left', padx=5)
-            tk.Button(buttons_frame, text="Delete Selected", command=delete_selected_job, bg="red", fg="white").pack(side='left', padx=5)
+            tk.Button(buttons_frame, text="Refresh", command=refresh_jobs, width=12, height=2,
+                     bg="#E0E0E0", fg="black", activebackground="#D0D0D0", activeforeground="black",
+                     relief="raised", bd=2).pack(side='left', padx=5)
+            tk.Button(buttons_frame, text="Delete Selected", command=delete_selected_job, bg="#DC143C", fg="white", 
+                     activebackground="#B22222", activeforeground="white", width=15, height=2,
+                     relief="raised", bd=2).pack(side='left', padx=5)
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load jobs history: {e}")
@@ -1240,7 +1253,7 @@ class LambrkCompressorGUI:
                 self.current_job_id = None
         
         compress_text = "Start Database-Tracked Compression" if self.database_enabled else "Start Concurrent Compression"
-        self.compress_button.config(state='normal', text=compress_text)
+        self.compress_button.config(state='normal', text=compress_text, wraplength=250, bg="#228B22", fg="white")
         self.stop_button.config(state='disabled')
         self.overall_progress.stop()
         self.workers_label.config(text=f"Available Workers: {resource_monitor.get_optimal_concurrent_count('medium')}", fg="green")
